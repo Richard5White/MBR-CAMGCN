@@ -1,0 +1,27 @@
+###进入data\mall目录下，在此文件运行data_process.py
+cd MB-HGCN-main
+cd data
+cd Tmall
+python data_process.py
+完成后记得回到主目录下
+
+###如果是第一次训练，请将main.py中的('--if_load_model', type=bool, default=False, help='')
+default设置为False
+
+###创建一个check_point文件夹
+mkdir -p ./check_point/
+
+###开始训练
+python main.py --data_name tmall
+python main.py --data_name jdata
+当进行一次训练后可将之前的False改为True则会加载之前训练的模型，或者直接使用指令也可
+
+python main.py --data_name tmall --if_load_model False
+
+删除文件指令
+rm main.py
+
+上传文件指令
+scp -r C:\Users\86158\Desktop\MB-HGCN-main-better\model.py heyuanxin@222.198.156.90:/home/heyuanxin/MB-HGCN-main-better
+
+https://github.com/MingshiYan/MB-HGCN
