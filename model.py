@@ -1,4 +1,3 @@
-
 import os.path
 from math import sqrt
 
@@ -101,6 +100,14 @@ class MB_HGCN(nn.Module):
         self.storage_user_embeddings = None
         self.storage_item_embeddings = None
 
+        # 添加固定权重参数
+        self.single_behavior_weight = 1.8  # 单行为嵌入权重
+        self.multi_behavior_weight = 0.225  # 多行为嵌入权重
+        
+        # 新增物品嵌入融合权重参数
+        self.item_global_weight = 1  # 物品全局嵌入权重
+        self.item_local_weight = 0.3 # 物品局部嵌入权重
+
         self.apply(self._init_weights)
 
         self._load_model()
@@ -165,13 +172,19 @@ class MB_HGCN(nn.Module):
         all_item_embeddings = all_item_embeddings * weight.unsqueeze(-1)
         all_item_embeddings = torch.sum(all_item_embeddings, dim=1) + item_embedding
 
+        # 使用固定权重进行嵌入融合
+        final_user_embeddings = self.single_behavior_weight * user_embedding.unsqueeze(1) + self.multi_behavior_weight * all_user_embeddings
+        
+        # 修改物品嵌入融合，使用单独的权重参数
+        final_item_embeddings = self.item_global_weight * item_embedding + self.item_local_weight * all_item_embeddings
+
         total_loss = 0
         for i in range(len(self.behaviors)):
             data = batch_data[:, i]
             users = data[:, 0].long()
             items = data[:, 1:].long()
-            user_feature = all_user_embeddings[:, i][users.view(-1, 1)]
-            item_feature = all_item_embeddings[items]
+            user_feature = final_user_embeddings[:, i][users.view(-1, 1)]
+            item_feature = final_item_embeddings[items]
             # user_feature, item_feature = self.message_dropout(user_feature), self.message_dropout(item_feature)
             scores = torch.sum(user_feature * item_feature, dim=2)
             total_loss += self.bpr_loss(scores[:, 0], scores[:, 1])
@@ -196,11 +209,13 @@ class MB_HGCN(nn.Module):
             all_item_embeddings = all_item_embeddings * weight.unsqueeze(-1)
             self.storage_item_embeddings = torch.sum(all_item_embeddings, dim=1) + item_embedding
 
+            # 使用固定权重进行嵌入融合
+            self.storage_user_embeddings = self.single_behavior_weight * user_embedding + self.multi_behavior_weight * self.storage_user_embeddings
+            
+            # 修改物品嵌入融合，使用单独的权重参数
+            self.storage_item_embeddings = self.item_global_weight * item_embedding + self.item_local_weight * self.storage_item_embeddings
+
         user_emb = self.storage_user_embeddings[users.long()]
         scores = torch.matmul(user_emb, self.storage_item_embeddings.transpose(0, 1))
 
         return scores
-
-
-
-
